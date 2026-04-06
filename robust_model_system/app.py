@@ -99,7 +99,7 @@ def render_login():
             else:
                 st.error("用户名或密码错误，请重新输入")
 
-        st.info("默认测试账号：user；默认密码：123456")
+        st.info("默认测试账号：user 默认密码：123456")
 
 
 # 侧边栏
