@@ -6,9 +6,7 @@ from core.preprocess import load_data, run_preprocess
 from core.models import train_and_evaluate
 
 
-# ==============================
 # 页面配置
-# ==============================
 st.set_page_config(
     page_title="鲁棒模型拟合系统",
     layout="wide",
@@ -16,9 +14,7 @@ st.set_page_config(
 )
 
 
-# ==============================
-# 少量全局样式：只调间距，不包文字内容
-# ==============================
+# 少量全局样式
 st.markdown("""
 <style>
 .block-container {
@@ -32,9 +28,7 @@ div.stButton > button {
 """, unsafe_allow_html=True)
 
 
-# ==============================
-# Session State 初始化
-# ==============================
+
 def init_session_state():
     defaults = {
         "logged_in": False,
@@ -57,9 +51,8 @@ def init_session_state():
 init_session_state()
 
 
-# ==============================
+
 # 公共方法
-# ==============================
 def reset_data_related_states():
     """上传新文件后，重置与数据处理、训练相关的状态"""
     st.session_state["df_processed"] = None
@@ -76,9 +69,7 @@ def render_system_title():
     st.caption("集数据上传、预处理、可视化与多模型训练的数据分析系统")
 
 
-# ==============================
 # 登录页面
-# ==============================
 def render_login():
     st.title("鲁棒模型拟合系统")
     st.subheader("用户登录")
@@ -111,9 +102,8 @@ def render_login():
         st.info("默认测试账号：user；默认密码：123456")
 
 
-# ==============================
 # 侧边栏
-# ==============================
+
 def render_sidebar():
     st.sidebar.title("功能菜单")
 
@@ -176,9 +166,7 @@ def render_sidebar():
     return page
 
 
-# ==============================
 # 首页
-# ==============================
 def render_home():
     render_system_title()
 
@@ -214,9 +202,7 @@ def render_home():
         st.success(f"当前已加载文件：{st.session_state['uploaded_filename']}")
 
 
-# ==============================
 # 数据上传页
-# ==============================
 def render_upload_page():
     render_system_title()
     st.subheader("数据上传")
@@ -231,9 +217,7 @@ def render_upload_page():
         st.warning("当前尚未上传数据文件。")
 
 
-# ==============================
 # 原始数据展示
-# ==============================
 def render_data_preview():
     render_system_title()
     st.subheader("原始数据展示")
@@ -257,9 +241,7 @@ def render_data_preview():
     st.dataframe(df_original.describe(include="all"), use_container_width=True)
 
 
-# ==============================
 # 数据预处理
-# ==============================
 def render_preprocess_page():
     render_system_title()
     st.subheader("数据预处理")
@@ -345,9 +327,7 @@ def render_preprocess_page():
         st.dataframe(st.session_state["df_processed"].head(10), use_container_width=True)
 
 
-# ==============================
 # 数据可视化
-# ==============================
 def render_visualization_page():
     render_system_title()
     st.subheader("数据可视化")
@@ -405,9 +385,7 @@ def render_visualization_page():
         st.warning("当前数据中没有可用于可视化的数值型列。")
 
 
-# ==============================
 # 模型训练
-# ==============================
 def render_training_page():
     render_system_title()
     st.subheader("模型训练与最优推荐")
@@ -477,9 +455,7 @@ def render_training_page():
             st.success(f"推荐模型：{st.session_state['best_model_name']}")
 
 
-# ==============================
 # 数据导出
-# ==============================
 def render_export_page():
     render_system_title()
     st.subheader("数据导出")
@@ -501,9 +477,7 @@ def render_export_page():
     st.success("当前导出内容为处理后的数据文件。")
 
 
-# ==============================
 # 主程序入口
-# ==============================
 if not st.session_state["logged_in"]:
     render_login()
 else:
