@@ -6,9 +6,8 @@ from sklearn.cluster import KMeans, DBSCAN
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error, silhouette_score
 from sklearn.model_selection import train_test_split, cross_val_score
 
-# ==============================
 # 模型定义
-# ==============================
+
 SUPPORTED_MODELS = {
     "回归": {
         "线性回归": LinearRegression(),
@@ -22,9 +21,8 @@ SUPPORTED_MODELS = {
     }
 }
 
-# ==============================
+
 # 单模型训练：回归
-# ==============================
 def train_single_model(X, y, model_name):
     model = SUPPORTED_MODELS["回归"][model_name]
 
@@ -43,9 +41,8 @@ def train_single_model(X, y, model_name):
         "CV_R2": round(cross_val_score(model, X, y, cv=5, scoring="r2").mean(), 4)
     }
 
-# ==============================
+
 # 单模型训练：聚类
-# ==============================
 def train_single_cluster_model(X, model_name):
     model = SUPPORTED_MODELS["聚类"][model_name]
 
@@ -76,13 +73,11 @@ def train_single_cluster_model(X, model_name):
         "Silhouette": silhouette
     }
 
-# ==============================
 # 总训练与评估函数
-# ==============================
 def train_and_evaluate(X, y, model_type):
     results = []
 
-    # 回归任务
+    # 回归
     if model_type == "回归":
         for model_name in SUPPORTED_MODELS["回归"].keys():
             try:
