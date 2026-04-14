@@ -1,41 +1,44 @@
-# 结果导出核心模块
 import os
+import io
 import pickle
 import pandas as pd
-import matplotlib.pyplot as plt
 
-def export_data(df, save_path, file_name="processed_data"):
-    """导出预处理后的数据为CSV"""
-    try:
-        if not os.path.exists(save_path):
-            os.makedirs(save_path)
-        full_path = os.path.join(save_path, f"{file_name}.csv")
-        df.to_csv(full_path, index=False, encoding="utf-8")
-        return {"status": "success", "msg": f"数据已导出至：{full_path}"}
-    except Exception as e:
-        return {"status": "error", "msg": f"数据导出失败：{str(e)}"}
 
-def export_model(model, save_path, model_name="best_model"):
-    """导出训练好的模型为pickle文件"""
-    try:
-        if not os.path.exists(save_path):
-            os.makedirs(save_path)
-        full_path = os.path.join(save_path, f"{model_name}.pkl")
-        with open(full_path, "wb") as f:
-            pickle.dump(model, f)
-        return {"status": "success", "msg": f"模型已导出至：{full_path}"}
-    except Exception as e:
-        return {"status": "error", "msg": f"模型导出失败：{str(e)}"}
+def export_dataframe_to_csv_bytes(df):
+    """将DataFrame转换为可下载的CSV二进制数据"""
+    return df.to_csv(index=False).encode("utf-8-sig")
 
-def export_metrics(metrics_dict, save_path, file_name="model_metrics"):
-    """导出模型性能指标为CSV"""
-    try:
-        if not os.path.exists(save_path):
-            os.makedirs(save_path)
-        # 转换为DataFrame
-        df_metrics = pd.DataFrame(metrics_dict).T  
-        full_path = os.path.join(save_path, f"{file_name}.csv")
-        df_metrics.to_csv(full_path, encoding="utf-8")
-        return {"status": "success", "msg": f"指标已导出至：{full_path}"}
-    except Exception as e:
-        return {"status": "error", "msg": f"指标导出失败：{str(e)}"}
+
+def export_summary_to_csv_bytes(summary_dict):
+    """将摘要字典转换为CSV二进制数据"""
+    df_summary = pd.DataFrame([summary_dict])
+    return df_summary.to_csv(index=False).encode("utf-8-sig")
+
+
+def export_model_to_bytes(model):
+    """将模型对象序列化为二进制"""
+    model_buffer = io.BytesIO()
+    pickle.dump(model, model_buffer)
+    model_buffer.seek(0)
+    return model_buffer
+
+
+def save_dataframe_to_local(df, save_path, file_name="processed_data.csv"):
+    """保存DataFrame到本地"""
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+
+    full_path = os.path.join(save_path, file_name)
+    df.to_csv(full_path, index=False, encoding="utf-8-sig")
+    return full_path
+
+
+def save_model_to_local(model, save_path, file_name="best_model.pkl"):
+    """保存模型到本地"""
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+
+    full_path = os.path.join(save_path, file_name)
+    with open(full_path, "wb") as f:
+        pickle.dump(model, f)
+    return full_path
