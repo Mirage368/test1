@@ -1,12 +1,15 @@
 import streamlit as st
 import pandas as pd
 import time
+import io
+import pickle
 
 from core.preprocess import load_data, run_preprocess
 from core.models import train_and_evaluate
 
 
 # 页面配置
+
 st.set_page_config(
     page_title="鲁棒模型拟合系统",
     layout="wide",
@@ -14,7 +17,6 @@ st.set_page_config(
 )
 
 
-# 少量全局样式
 st.markdown("""
 <style>
 .block-container {
@@ -28,6 +30,7 @@ div.stButton > button {
 """, unsafe_allow_html=True)
 
 
+# Session State 初始化
 
 def init_session_state():
     defaults = {
@@ -38,6 +41,7 @@ def init_session_state():
         "uploaded_filename": None,
         "file_loaded": False,
         "model_results": None,
+        "trained_models": None,   
         "best_model_name": None,
         "runtime": None,
         "selected_model_type": "无",
@@ -51,13 +55,14 @@ def init_session_state():
 init_session_state()
 
 
-
 # 公共方法
+
 def reset_data_related_states():
     """上传新文件后，重置与数据处理、训练相关的状态"""
     st.session_state["df_processed"] = None
     st.session_state["scaler"] = None
     st.session_state["model_results"] = None
+    st.session_state["trained_models"] = None
     st.session_state["best_model_name"] = None
     st.session_state["runtime"] = None
     st.session_state["selected_model_type"] = "无"
@@ -99,7 +104,7 @@ def render_login():
             else:
                 st.error("用户名或密码错误，请重新输入")
 
-        st.info("默认测试账号：user 默认密码：123456")
+        st.info("默认测试账号：user；默认密码：123456")
 
 
 # 侧边栏
@@ -129,7 +134,7 @@ def render_sidebar():
         key="csv_uploader"
     )
 
-    # 只在新文件上传时重新读取和重置
+    
     if uploaded_file is not None:
         current_name = uploaded_file.name
         previous_name = st.session_state["uploaded_filename"]
@@ -151,12 +156,12 @@ def render_sidebar():
 
     st.sidebar.markdown("---")
     st.sidebar.write("当前系统模块：")
-    st.sidebar.write("1.数据上传")
-    st.sidebar.write("2.原始数据展示")
-    st.sidebar.write("3.数据预处理")
-    st.sidebar.write("4.数据可视化")
-    st.sidebar.write("5.模型训练")
-    st.sidebar.write("6.数据导出")
+    st.sidebar.write("1. 数据上传")
+    st.sidebar.write("2. 原始数据展示")
+    st.sidebar.write("3. 数据预处理")
+    st.sidebar.write("4. 数据可视化")
+    st.sidebar.write("5. 模型训练")
+    st.sidebar.write("6. 数据导出")
 
     if st.sidebar.button("退出登录"):
         for key in list(st.session_state.keys()):
@@ -167,6 +172,7 @@ def render_sidebar():
 
 
 # 首页
+
 def render_home():
     render_system_title()
 
@@ -195,7 +201,7 @@ def render_home():
 3. 在“数据预处理”模块中完成缺失值、异常值和标准化等操作（也可以跳过预处理部分）。  
 4. 在“数据可视化”模块中查看散点图和数据分布（可手动选择x轴、y轴变量）。  
 5. 在“模型训练”模块中执行训练并获取最优模型推荐。  
-6. 在“数据导出”模块中下载处理后的数据。  
+6. 在“数据导出”模块中下载处理后的数据、模型结果与最优模型。  
 """)
 
     if st.session_state["uploaded_filename"]:
@@ -203,6 +209,7 @@ def render_home():
 
 
 # 数据上传页
+
 def render_upload_page():
     render_system_title()
     st.subheader("数据上传")
@@ -216,8 +223,8 @@ def render_upload_page():
     else:
         st.warning("当前尚未上传数据文件。")
 
-
 # 原始数据展示
+
 def render_data_preview():
     render_system_title()
     st.subheader("原始数据展示")
@@ -242,6 +249,7 @@ def render_data_preview():
 
 
 # 数据预处理
+
 def render_preprocess_page():
     render_system_title()
     st.subheader("数据预处理")
@@ -317,6 +325,7 @@ def render_preprocess_page():
         st.session_state["df_processed"] = df_processed
         st.session_state["scaler"] = scaler
         st.session_state["model_results"] = None
+        st.session_state["trained_models"] = None
         st.session_state["best_model_name"] = None
         st.session_state["runtime"] = None
 
@@ -327,7 +336,7 @@ def render_preprocess_page():
         st.dataframe(st.session_state["df_processed"].head(10), use_container_width=True)
 
 
-# 数据可视化
+
 def render_visualization_page():
     render_system_title()
     st.subheader("数据可视化")
@@ -386,6 +395,7 @@ def render_visualization_page():
 
 
 # 模型训练
+
 def render_training_page():
     render_system_title()
     st.subheader("模型训练与最优推荐")
@@ -422,15 +432,16 @@ def render_training_page():
 
                 X = df_processed.drop(columns=[target_col])
                 y = df_processed[target_col]
-                results = train_and_evaluate(X, y, model_type)
+                results, trained_models = train_and_evaluate(X, y, model_type)
 
             else:
                 X = df_processed.copy()
-                results = train_and_evaluate(X, None, model_type)
+                results, trained_models = train_and_evaluate(X, None, model_type)
 
         end_time = time.time()
 
         st.session_state["model_results"] = results
+        st.session_state["trained_models"] = trained_models
         st.session_state["runtime"] = end_time - start_time
 
         if results is not None and not results.empty:
@@ -456,28 +467,94 @@ def render_training_page():
 
 
 # 数据导出
+
 def render_export_page():
     render_system_title()
     st.subheader("数据导出")
 
-    if st.session_state["df_processed"] is None:
-        st.warning("请先完成数据预处理后再导出。")
-        return
-
-    df_to_export = st.session_state["df_processed"]
-    csv_data = df_to_export.to_csv(index=False).encode("utf-8-sig")
-
-    st.download_button(
-        label="下载处理后的数据",
-        data=csv_data,
-        file_name="processed_data.csv",
-        mime="text/csv"
+    has_processed_data = st.session_state["df_processed"] is not None
+    has_model_results = st.session_state["model_results"] is not None
+    has_best_model = (
+        st.session_state["trained_models"] is not None and
+        st.session_state["best_model_name"] is not None and
+        st.session_state["best_model_name"] in st.session_state["trained_models"]
     )
 
-    st.success("当前导出内容为处理后的数据文件。")
+    if not has_processed_data and not has_model_results:
+        st.warning("请先完成数据预处理或模型训练后再导出。")
+        return
+
+    st.write("### 可导出内容")
+
+    # 1. 导出处理后的数据
+    if has_processed_data:
+        df_to_export = st.session_state["df_processed"]
+        csv_data = df_to_export.to_csv(index=False).encode("utf-8-sig")
+
+        st.download_button(
+            label="下载处理后的数据",
+            data=csv_data,
+            file_name="processed_data.csv",
+            mime="text/csv"
+        )
+
+    if has_model_results:
+        st.write("### 模型结果预览")
+        st.dataframe(st.session_state["model_results"], use_container_width=True)
+
+        results_csv = st.session_state["model_results"].to_csv(index=False).encode("utf-8-sig")
+
+        st.download_button(
+            label="下载模型对比结果数据",
+            data=results_csv,
+            file_name="model_results.csv",
+            mime="text/csv"
+        )
+
+        summary_df = pd.DataFrame([{
+            "任务类型": st.session_state["selected_model_type"],
+            "推荐模型": st.session_state["best_model_name"],
+            "目标变量": st.session_state["selected_target_col"] if st.session_state["selected_model_type"] == "回归" else "无",
+            "训练耗时(秒)": round(st.session_state["runtime"], 4) if st.session_state["runtime"] is not None else None
+        }])
+
+        summary_csv = summary_df.to_csv(index=False).encode("utf-8-sig")
+
+        st.download_button(
+            label="下载训练摘要数据",
+            data=summary_csv,
+            file_name="training_summary.csv",
+            mime="text/csv"
+        )
+
+    # 4. 导出最优模型
+    if has_best_model:
+        best_model_name = st.session_state["best_model_name"]
+        best_model = st.session_state["trained_models"][best_model_name]
+
+        model_buffer = io.BytesIO()
+        pickle.dump(best_model, model_buffer)
+        model_buffer.seek(0)
+
+        safe_model_name = (
+            best_model_name.replace("/", "_")
+            .replace("(", "")
+            .replace(")", "")
+            .replace(" ", "_")
+        )
+
+        st.download_button(
+            label=f"下载最优模型（{best_model_name}）",
+            data=model_buffer,
+            file_name=f"{safe_model_name}.pkl",
+            mime="application/octet-stream"
+        )
+
+    st.success("当前支持导出：处理后的数据、模型对比结果、训练摘要、推荐最优模型。")
 
 
 # 主程序入口
+
 if not st.session_state["logged_in"]:
     render_login()
 else:
