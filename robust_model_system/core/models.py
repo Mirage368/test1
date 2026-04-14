@@ -6,8 +6,9 @@ from sklearn.cluster import KMeans, DBSCAN
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error, silhouette_score
 from sklearn.model_selection import train_test_split, cross_val_score
 
+# ==============================
 # 模型定义
-
+# ==============================
 SUPPORTED_MODELS = {
     "回归": {
         "线性回归": LinearRegression(),
@@ -22,7 +23,9 @@ SUPPORTED_MODELS = {
 }
 
 
+# ==============================
 # 单模型训练：回归
+# ==============================
 def train_single_model(X, y, model_name):
     model = SUPPORTED_MODELS["回归"][model_name]
 
@@ -33,7 +36,7 @@ def train_single_model(X, y, model_name):
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
 
-    return {
+    metrics = {
         "Model": model_name,
         "R2": round(r2_score(y_test, y_pred), 4),
         "MAE": round(mean_absolute_error(y_test, y_pred), 4),
@@ -41,21 +44,21 @@ def train_single_model(X, y, model_name):
         "CV_R2": round(cross_val_score(model, X, y, cv=5, scoring="r2").mean(), 4)
     }
 
+    return metrics, model
 
+
+# ==============================
 # 单模型训练：聚类
+# ==============================
 def train_single_cluster_model(X, model_name):
     model = SUPPORTED_MODELS["聚类"][model_name]
 
     labels = model.fit_predict(X)
-
-    # 如果只有一个簇，或者全部被判为噪声，则轮廓系数无法计算
     unique_labels = set(labels)
 
-    # DBSCAN 可能出现全是 -1（噪声）或者只有一个有效簇
     if len(unique_labels) <= 1:
         silhouette = None
     else:
-        # 去掉噪声后，如果有效簇数不足2，也无法计算
         effective_labels = set(labels)
         if -1 in effective_labels:
             effective_labels.remove(-1)
@@ -65,25 +68,32 @@ def train_single_cluster_model(X, model_name):
         else:
             try:
                 silhouette = round(silhouette_score(X, labels), 4)
-            except:
+            except Exception:
                 silhouette = None
 
-    return {
+    metrics = {
         "Model": model_name,
         "Silhouette": silhouette
     }
 
+    return metrics, model
+
+
+# ==============================
 # 总训练与评估函数
+# ==============================
 def train_and_evaluate(X, y, model_type):
     results = []
+    trained_models = {}
 
-    # 回归
+    # 回归任务
     if model_type == "回归":
         for model_name in SUPPORTED_MODELS["回归"].keys():
             try:
-                res = train_single_model(X, y, model_name)
+                res, model = train_single_model(X, y, model_name)
                 results.append(res)
-            except Exception as e:
+                trained_models[model_name] = model
+            except Exception:
                 results.append({
                     "Model": model_name,
                     "R2": None,
@@ -93,25 +103,27 @@ def train_and_evaluate(X, y, model_type):
                 })
 
         df_results = pd.DataFrame(results)
-        df_results = df_results.sort_values(by="CV_R2", ascending=False)
-        return df_results
+        df_results = df_results.sort_values(by="CV_R2", ascending=False, na_position="last").reset_index(drop=True)
+        return df_results, trained_models
 
     # 聚类任务
     elif model_type == "聚类":
         for model_name in SUPPORTED_MODELS["聚类"].keys():
             try:
-                res = train_single_cluster_model(X, model_name)
+                res, model = train_single_cluster_model(X, model_name)
                 results.append(res)
-            except Exception as e:
+                trained_models[model_name] = model
+            except Exception:
                 results.append({
                     "Model": model_name,
                     "Silhouette": None
                 })
 
         df_results = pd.DataFrame(results)
-        df_results = df_results.sort_values(by="Silhouette", ascending=False, na_position="last")
-        return df_results
+        df_results = df_results.sort_values(by="Silhouette", ascending=False, na_position="last").reset_index(drop=True)
+        return df_results, trained_models
 
     # 其他类型
     else:
-        return pd.DataFrame([{"Model": "不支持该任务类型"}])
+        df_results = pd.DataFrame([{"Model": "不支持该任务类型"}])
+        return df_results, trained_models
